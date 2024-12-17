@@ -87,7 +87,8 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         for (int i = 0; i < ctx.getChildCount(); ++i) {
             final ParseTree child = ctx.getChild(i);
             visit(child);
-            if (child.getText().equals(";")) {
+            final String text = child.getText();
+            if (text.equals(";") || text.startsWith("#")) {
                 newLine();
             }
         }
@@ -160,6 +161,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         visit(ctx.scope());
         newLine();
         exitScope();
+        newLine();
         return null;
     }
 
@@ -191,25 +193,75 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
 
     @Override
     public Void visitScope(ProgramParser.ScopeContext ctx) {
-        withIdent('{');
+        write('{');
         increaseIdent();
         newLine();
         for (int i = 1; i < ctx.getChildCount() - 1; ++i) {
-            visit(ctx.getChild(i));
+            ident();
+            final ParseTree child = ctx.getChild(i);
+            visit(child);
+            newLine();
         }
         decreaseIdent();
         withIdent('}');
-        newLine();
         return null;
     }
 
     @Override
-    public Void visitStatement(ProgramParser.StatementContext ctx) {
-        ident();
-        super.visitStatement(ctx);
-        if (ctx.oneLineStatement() != null) {
-            newLine();
+    public Void visitIf(ProgramParser.IfContext ctx) {
+        write("if (");
+        visit(ctx.expression());
+        write(") ");
+        visit(ctx.statement(0));
+        if (ctx.statement(1) != null) {
+            write(" else ");
+            visit(ctx.statement(1));
         }
+        return null;
+    }
+
+    @Override
+    public Void visitWhile(ProgramParser.WhileContext ctx) {
+        write("while (");
+        visit(ctx.expression());
+        write(") ");
+        visit(ctx.statement());
+        return null;
+    }
+
+    @Override
+    public Void visitFor(ProgramParser.ForContext ctx) {
+        write("for (");
+        visit(ctx.simpleStatement(0));
+        write("; ");
+        visit(ctx.simpleStatement(1));
+        write("; ");
+        visit(ctx.simpleStatement(2));
+        write(") ");
+        visit(ctx.statement());
+        return null;
+    }
+
+    @Override
+    public Void visitReturn(ProgramParser.ReturnContext ctx) {
+        write("return ");
+        return visit(ctx.expression());
+    }
+
+    @Override
+    public Void visitExpression(ProgramParser.ExpressionContext ctx) {
+        if (ctx.prefixOperator() != null ||
+                ctx.postfixOperator() != null ||
+                ctx.primary() != null ||
+                ctx.getChild(0).getText().equals("(") ||
+                ctx.getChild(1).getText().equals("(")) {
+            return super.visitExpression(ctx);
+        }
+        visit(ctx.getChild(0));
+        write(' ');
+        visit(ctx.getChild(1));
+        write(' ');
+        visit(ctx.getChild(2));
         return null;
     }
 }

@@ -1,7 +1,7 @@
 grammar Program;
 
 
-program : (variableDeclaration ';' | functionDeclaration)*;
+program : (variableDeclaration ';' | functionDeclaration | preprocessor)*;
 
 scope: '{' statement* '}';
 
@@ -21,7 +21,8 @@ statement:
          oneLineStatement ';'
          | scope
          | if
-         | while;
+         | while
+         | for;
 
 type: IDENT;
 
@@ -32,7 +33,8 @@ variableDeclaration: type singleVariableDeclaration (',' singleVariableDeclarati
 
 assignment: expression assignmentOperator expression;
 assignmentOperator:
-                  '+='
+                  '='
+                  | '+='
                   | '-='
                   | '*='
                   | '/=';
@@ -42,9 +44,10 @@ while: 'while' '(' expression ')' statement;
 for: 'for' '(' simpleStatement ';' simpleStatement ';' simpleStatement ')' statement;
 
 prefixOperator: '-' | '&' | '*' | '++' | '--';
+postfixOperator: '++' | '--';
 
 expression:
-          expression ('++' | '--')
+          expression postfixOperator
           | prefixOperator expression
           | expression ( '*' | '/' ) expression
           | expression ( '+' | '-' ) expression
@@ -60,8 +63,13 @@ primary: name | literal;
 
 literal: INT | STRING;
 
+preprocessor: PREPROCESSOR;
+
 INT: [0-9]+;
 STRING: '"' (ESC | ~[\\"\n\r])* '"';
 ESC: '\\"' | '\\n' | '\\t' | '\\r';
 IDENT: [a-zA-Z_] [a-zA-Z0-9_]*;
-WS: [ \t\n\r] -> skip;
+WS: [ \t\n\r]+ -> skip;
+PREPROCESSOR: '#' (~[\n\r])+;
+COMMENT: '//' ~[\n\r]* -> skip;
+MULTILINE_COMMENT: '/*' .*? '*/' -> skip;
