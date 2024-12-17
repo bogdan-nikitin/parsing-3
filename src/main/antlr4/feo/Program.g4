@@ -34,12 +34,15 @@ if: 'if' '(' expression ')' statement ('else' statement)?;
 while: 'while' '(' expression ')' statement;
 for: 'for' '(' simpleStatement ';' simpleStatement ';' simpleStatement ')' statement;
 
-unaryOperator: '-' | '&' | '*';
+prefixOperator: '-' | '&' | '*' | '++' | '--';
 
 expression:
-          unaryOperator expression
+          expression ('++' | '--')
+          | prefixOperator expression
           | expression ( '*' | '/' ) expression
           | expression ( '+' | '-' ) expression
+          | expression ( '<' | '>' | '<=' | '>=' ) expression
+          | expression ( '==' | '!=' ) expression
           | '(' expression ')'
           | expression '(' (expression (',' expression)*)? ')'
           | primary
@@ -52,5 +55,5 @@ literal: INT | STRING;
 INT: [0-9]+;
 STRING: '"' (ESC | ~[\\"\n\r])* '"';
 ESC: '\\"' | '\\n' | '\\t' | '\\r';
-IDENT: [a-zA-Z] [a-zA-Z0-9]*;
+IDENT: [a-zA-Z_] [a-zA-Z0-9_]*;
 WS: [ \t\n\r] -> skip;
