@@ -8,8 +8,8 @@ import java.io.IOException;
 import java.util.*;
 
 public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
-    private static final int NAME_WIDTH = 10;
-    private static final char[] POSSIBLE_CHARS = {'0', '1', 'O', 'I'};
+    private static final int NAME_WIDTH = 4;
+    private static final char[] POSSIBLE_CHARS = {'O', 'I', '0', '1'};
     private final static String IDENT = "    ";
     private final BufferedWriter writer;
     private final List<Map<String, String>> scopes = new ArrayList<>();
@@ -117,7 +117,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     private String newName() {
         char[] chars = new char[NAME_WIDTH];
         for (int i = 0; i < NAME_WIDTH; ++i) {
-            chars[i] = POSSIBLE_CHARS[random.nextInt(i == NAME_WIDTH - 1 ? 1 : 2) * 2 + ((baseName & (1 << i)) == 0 ? 0 : 1)];
+            chars[i] = POSSIBLE_CHARS[random.nextInt(i == 0 ? 1 : 2) * 2 + ((baseName & (1 << i)) == 0 ? 0 : 1)];
         }
         final String result = String.valueOf(chars);
         return usedNames.add(result) ? result : newName();
@@ -257,10 +257,31 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         if (ctx.prefixOperator() != null ||
                 ctx.postfixOperator() != null ||
                 ctx.primary() != null ||
-                ctx.getChild(0).getText().equals("(") ||
-                ctx.getChild(1).getText().equals("(")) {
+                ctx.getChild(0).getText().equals("(")) {
             return super.visitExpression(ctx);
         }
+        if (ctx.getChild(1).getText().equals("(")) {
+            visit(ctx.getChild(0));
+            write('(');
+            for (int i = 2; !ctx.getChild(i).getText().equals(")"); ++i) {
+                visit(ctx.getChild(i));
+                if (ctx.getChild(i).getText().equals(",")) {
+                    write(' ');
+                }
+            }
+            write(")");
+            return null;
+        }
+        visit(ctx.getChild(0));
+        write(' ');
+        visit(ctx.getChild(1));
+        write(' ');
+        visit(ctx.getChild(2));
+        return null;
+    }
+
+    @Override
+    public Void visitAssignment(ProgramParser.AssignmentContext ctx) {
         visit(ctx.getChild(0));
         write(' ');
         visit(ctx.getChild(1));
