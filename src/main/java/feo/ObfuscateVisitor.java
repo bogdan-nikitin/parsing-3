@@ -9,26 +9,30 @@ import java.util.*;
 
 public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     private static final int NAME_WIDTH = 10;
+    private static final char[] POSSIBLE_CHARS = {'0', '1', 'O', 'I'};
+    private final static String IDENT = "    ";
     private final BufferedWriter writer;
-    private IOException exception = null;
     private final List<Map<String, String>> scopes = new ArrayList<>();
     private final int baseName;
-    private Set<String> usedNames = new HashSet<>();
+    private final Set<String> usedNames = new HashSet<>();
     private final Random random = new Random();
-    private static final char[] POSSIBLE_CHARS = {'0', '1', 'O', 'I'};
+    private IOException ioException = null;
     private int ident = 0;
-    private final static String IDENT = "    ";
 
     public ObfuscateVisitor(final BufferedWriter writer) {
         this.writer = writer;
         this.baseName = random.nextInt(1 << (NAME_WIDTH - 1), 1 << NAME_WIDTH);
     }
 
+    public IOException ioException() {
+        return ioException;
+    }
+
     private void write(final char c) {
         try {
             writer.write(c);
         } catch (final IOException e) {
-            exception = e;
+            ioException = e;
         }
     }
 
@@ -60,7 +64,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         try {
             writer.write(string);
         } catch (final IOException e) {
-            exception = e;
+            ioException = e;
         }
     }
 
@@ -68,7 +72,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         try {
             writer.newLine();
         } catch (final IOException e) {
-            exception = e;
+            ioException = e;
         }
     }
 
