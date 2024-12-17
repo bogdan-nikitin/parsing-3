@@ -5,22 +5,29 @@ program : (variableDeclaration ';' | functionDeclaration)*;
 
 scope: '{' statement* '}';
 
-functionDeclaration : type IDENT '(' ')' scope;
+functionDeclaration : type IDENT '(' arguments ')' scope;
+
+arguments: (argumentDeclaration (',' argumentDeclaration)*)?;
+argumentDeclaration: type singleVariableDeclaration;
+
 simpleStatement:
                variableDeclaration
                | assignment
                | expression;
+
+oneLineStatement: simpleStatement | return;
+
 statement:
-         ( simpleStatement
-         | return
-         ) ';'
+         oneLineStatement ';'
          | scope
          | if
          | while;
 
 type: IDENT;
 
-singleVariableDeclaration: '*'* IDENT ('=' expression)?;
+declarators: ('*'|'&')*;
+
+singleVariableDeclaration: declarators IDENT ('=' expression)?;
 variableDeclaration: type singleVariableDeclaration (',' singleVariableDeclaration)*;
 
 assignment: expression assignmentOperator expression;
@@ -48,7 +55,8 @@ expression:
           | primary
           ;
 
-primary: IDENT | literal;
+name: IDENT;
+primary: name | literal;
 
 literal: INT | STRING;
 
