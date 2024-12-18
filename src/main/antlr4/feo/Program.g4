@@ -5,7 +5,7 @@ program : (variableDeclaration ';' | functionDeclaration | preprocessor)*;
 
 scope: '{' statement* '}';
 
-functionDeclaration : type IDENT '(' arguments ')' scope;
+functionDeclaration : type declarators IDENT '(' arguments ')' scope;
 
 arguments: (argumentDeclaration (',' argumentDeclaration)*)?;
 argumentDeclaration: type declarators singleVariableDeclaration;

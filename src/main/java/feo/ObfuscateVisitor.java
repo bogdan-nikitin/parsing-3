@@ -189,6 +189,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     public Void visitFunctionDeclaration(ProgramParser.FunctionDeclarationContext ctx) {
         enterScope();
         visit(ctx.type());
+        visit(ctx.declarators());
         write(' ');
         visit(ctx.IDENT());
         write('(');
