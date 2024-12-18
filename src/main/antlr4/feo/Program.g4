@@ -61,13 +61,14 @@ expression:
 name: IDENT;
 primary: name | literal;
 
-literal: INT | STRING;
+literal: INT | STRING | CHAR;
 
 preprocessor: PREPROCESSOR;
 
 INT: [0-9]+;
+CHAR: '\'' (ESC | ~[\\'\n\r]) '\'';
 STRING: '"' (ESC | ~[\\"\n\r])* '"';
-ESC: '\\"' | '\\n' | '\\t' | '\\r';
+ESC: '\\' ('"' | 'n' | 't' | 'r' | '\'' | '0');
 IDENT: [a-zA-Z_] [a-zA-Z0-9_]*;
 WS: [ \t\n\r]+ -> skip;
 PREPROCESSOR: '#' (~[\n\r])+;
