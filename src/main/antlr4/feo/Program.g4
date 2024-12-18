@@ -8,7 +8,7 @@ scope: '{' statement* '}';
 functionDeclaration : type IDENT '(' arguments ')' scope;
 
 arguments: (argumentDeclaration (',' argumentDeclaration)*)?;
-argumentDeclaration: type singleVariableDeclaration;
+argumentDeclaration: type declarators singleVariableDeclaration;
 
 simpleStatement:
                variableDeclaration
@@ -55,7 +55,7 @@ assignmentOperator:
                   | '-='
                   | '*='
                   | '/=';
-return: 'return' expression;
+return: 'return' (expression?);
 if: 'if' '(' expression ')' statement ('else' statement)?;
 while: 'while' '(' expression ')' statement;
 for: 'for' '(' simpleStatement ';' simpleStatement ';' simpleStatement ')' statement;

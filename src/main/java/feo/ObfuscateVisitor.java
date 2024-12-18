@@ -11,15 +11,26 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     private static final int NAME_WIDTH = 8;
     private static final char[] POSSIBLE_CHARS = {'O', 'I', '0', '1'};
     private final static String IDENT = "    ";
-    private final static double NEW_VAR_PROBABILITY = 0.3;
-    private final static double NEW_STATEMENT_PROBABILITY = 0.5;
+    private final static double DUMMY_VARIABLE_PROBABILITY = 0.3;
+    private final static double DUMMY_STATEMENT_PROBABILITY = 0.4;
     private final BufferedWriter writer;
     private final List<Map<String, String>> scopes = new ArrayList<>();
     private final int baseName;
     private final Set<String> usedNames = new HashSet<>();
+    private final Set<String> numericVariables = new HashSet<>();
+    private final Set<String> dummyVariables = new HashSet<>();
     private final Random random = new Random();
     private IOException ioException = null;
     private int ident = 0;
+    private final static List<String> NUMERIC_TYPES = List.of(
+            "int", "double", "float", "long", "short",
+            "long long", "long int", "long double", "unsigned int",
+            "unsigned char", "unsigned short", "unsigned long",
+            "unsigned long long", "signed int", "signed char",
+            "signed short", "signed long", "signed long long"
+    );
+    private final static String[] NUMERIC_OPERATORS = {"+", "-", "*"};
+    private final static int MAX_RANDOM_EXPRESSION_LENGTH = 5;
 
     public ObfuscateVisitor(final BufferedWriter writer) {
         this.writer = writer;
@@ -87,7 +98,10 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     }
 
     private void exitScope() {
-        usedNames.removeAll(scopes.getLast().values());
+        final Collection<String> scopeVariables = scopes.getLast().values();
+        usedNames.removeAll(scopeVariables);
+        numericVariables.removeAll(scopeVariables);
+        dummyVariables.removeAll(scopeVariables);
         scopes.removeLast();
     }
 
@@ -106,11 +120,23 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         return null;
     }
 
+    private String getVariableType(final ProgramParser.SingleVariableDeclarationContext ctx) {
+        final ParseTree parent = ctx.parent;
+        if (parent instanceof ProgramParser.ArgumentDeclarationContext that) {
+            return that.getText() + that.declarators();
+        }
+        final ProgramParser.VariableDeclarationContext that = ((ProgramParser.VariableDeclarationContext) ctx.parent);
+        return that.getText() + ctx.declarators();
+    }
+
     @Override
     public Void visitSingleVariableDeclaration(ProgramParser.SingleVariableDeclarationContext ctx) {
         visit(ctx.declarators());
         final String name = newName();
         scopes.getLast().put(ctx.IDENT().getText(), name);
+        if (NUMERIC_TYPES.contains(getVariableType(ctx))) {
+            numericVariables.add(name);
+        }
         write(name);
         final ParseTree expression = ctx.expression();
         if (expression != null) {
@@ -201,21 +227,18 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         return null;
     }
 
-    private void insertNewNumberVariable() {
-        if (!toss(NEW_VAR_PROBABILITY)) {
+    private void insertDummyVariable() {
+        if (!toss(DUMMY_VARIABLE_PROBABILITY)) {
             return;
         }
-        final String[] TYPES = {
-                "int", "double", "float", "long", "short",
-                "long long", "long int", "long double", "unsigned int",
-                "unsigned char", "unsigned short", "unsigned long",
-                "unsigned long long", "signed int", "signed char",
-                "signed short", "signed long", "signed long long"
-        };
+        final String name = newName();
+        dummyVariables.add(name);
+        numericVariables.add(name);
+        scopes.getLast().put(name, name);
         ident();
-        write(TYPES[random.nextInt(TYPES.length)]);
+        write(NUMERIC_TYPES.get(random.nextInt(NUMERIC_TYPES.size())));
         write(" ");
-        write(newName());
+        write(name);
         write(" = ");
         write(String.valueOf(random.nextInt(-128, 127)));
         write(';');
@@ -228,7 +251,8 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         increaseIdent();
         newLine();
         for (int i = 1; i < ctx.getChildCount() - 1; ++i) {
-            insertNewNumberVariable();
+            insertDummyVariable();
+            insertDummyStatement();
             ident();
             final ParseTree child = ctx.getChild(i);
             visit(child);
@@ -276,8 +300,12 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
 
     @Override
     public Void visitReturn(ProgramParser.ReturnContext ctx) {
-        write("return ");
-        return visit(ctx.expression());
+        write("return");
+        if (ctx.getChildCount() > 1) {
+            write(" ");
+            visit(ctx.expression());
+        }
+        return null;
     }
 
     @Override
@@ -326,5 +354,49 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
             visit(ctx.getChild(i));
         }
         return null;
+    }
+
+    private void insertDummyStatement() {
+        if (!toss(DUMMY_STATEMENT_PROBABILITY)) {
+            return;
+        }
+        final String dest = randomElement(dummyVariables);
+        if (dest == null) {
+            return;
+        }
+        ident();
+        write(dest);
+        write(" ");
+        if (random.nextBoolean()) {
+            write(randomNumericOperator());
+        }
+        write("= ");
+        write(randomExpression());
+        write(";");
+        newLine();
+    }
+
+    private <T> T randomElement(final Set<T> set) {
+        if (set.isEmpty()) {
+            return null;
+        }
+        return set.stream().skip(random.nextInt(set.size())).findFirst().orElse(null);
+    }
+
+    private String randomNumericOperator() {
+        return NUMERIC_OPERATORS[random.nextInt(NUMERIC_OPERATORS.length)];
+    }
+
+    private String randomExpression() {
+        final int operands = random.nextInt(1, MAX_RANDOM_EXPRESSION_LENGTH);
+        final String[] expression = new String[2 * operands - 1];
+        for (int i = 0; i < expression.length; ++i) {
+            if (i % 2 == 0) {
+                expression[i] = randomElement(numericVariables);
+            } else {
+                expression[i] = randomNumericOperator();
+            }
+        }
+        return String.join(" ", expression);
     }
 }
