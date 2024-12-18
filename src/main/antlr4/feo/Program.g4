@@ -42,7 +42,6 @@ type:
     | IDENT
     );
 
-
 declarators: ('*'|'&')*;
 
 singleVariableDeclaration: declarators IDENT ('=' expression)?;
