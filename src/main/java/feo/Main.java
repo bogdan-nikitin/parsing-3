@@ -23,7 +23,6 @@ public class Main {
         final BufferedWriter writer = new BufferedWriter(string);
         try {
             ObfuscateTool.obfuscate(in, writer);
-            writer.flush();
             System.out.println(string);
         } catch (final ObfuscateParseException e) {
             System.err.println("Parsing error: " + e.getMessage());
