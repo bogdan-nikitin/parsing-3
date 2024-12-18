@@ -22,5 +22,5 @@ int main() {
     bar(a)++;
     bar(a) += bar(a) * 4;
     int z = a == b;
-    z = a < b;
+    z = a < b && a > b;
 }
