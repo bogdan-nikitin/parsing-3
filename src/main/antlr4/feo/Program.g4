@@ -24,7 +24,24 @@ statement:
          | while
          | for;
 
-type: IDENT;
+type:
+    'const'?
+    ( 'long long'
+    | 'long int'
+    | 'long double'
+    | 'unsigned int'
+    | 'unsigned char'
+    | 'unsigned short'
+    | 'unsigned long'
+    | 'unsigned long long'
+    | 'signed int'
+    | 'signed char'
+    | 'signed short'
+    | 'signed long'
+    | 'signed long long'
+    | IDENT
+    );
+
 
 declarators: ('*'|'&')*;
 

@@ -8,9 +8,11 @@ import java.io.IOException;
 import java.util.*;
 
 public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
-    private static final int NAME_WIDTH = 4;
+    private static final int NAME_WIDTH = 8;
     private static final char[] POSSIBLE_CHARS = {'O', 'I', '0', '1'};
     private final static String IDENT = "    ";
+    private final static double NEW_VAR_PROBABILITY = 0.3;
+    private final static double NEW_STATEMENT_PROBABILITY = 0.5;
     private final BufferedWriter writer;
     private final List<Map<String, String>> scopes = new ArrayList<>();
     private final int baseName;
@@ -22,6 +24,10 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     public ObfuscateVisitor(final BufferedWriter writer) {
         this.writer = writer;
         this.baseName = random.nextInt(1 << (NAME_WIDTH - 1), 1 << NAME_WIDTH);
+    }
+
+    private boolean toss(final double probability) {
+        return random.nextDouble() <= probability;
     }
 
     public IOException ioException() {
@@ -195,12 +201,34 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         return null;
     }
 
+    private void insertNewNumberVariable() {
+        if (!toss(NEW_VAR_PROBABILITY)) {
+            return;
+        }
+        final String[] TYPES = {
+                "int", "double", "float", "long", "short",
+                "long long", "long int", "long double", "unsigned int",
+                "unsigned char", "unsigned short", "unsigned long",
+                "unsigned long long", "signed int", "signed char",
+                "signed short", "signed long", "signed long long"
+        };
+        ident();
+        write(TYPES[random.nextInt(TYPES.length)]);
+        write(" ");
+        write(newName());
+        write(" = ");
+        write(String.valueOf(random.nextInt(-128, 127)));
+        write(';');
+        newLine();
+    }
+
     @Override
     public Void visitScope(ProgramParser.ScopeContext ctx) {
         write('{');
         increaseIdent();
         newLine();
         for (int i = 1; i < ctx.getChildCount() - 1; ++i) {
+            insertNewNumberVariable();
             ident();
             final ParseTree child = ctx.getChild(i);
             visit(child);
@@ -287,6 +315,16 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         visit(ctx.getChild(1));
         write(' ');
         visit(ctx.getChild(2));
+        return null;
+    }
+
+    @Override
+    public Void visitType(ProgramParser.TypeContext ctx) {
+        visit(ctx.getChild(0));
+        for (int i = 1; i < ctx.getChildCount(); ++i) {
+            write(' ');
+            visit(ctx.getChild(i));
+        }
         return null;
     }
 }
