@@ -7,7 +7,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.*;
 
-public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
+public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Context> {
     private static final int NAME_WIDTH = 8;
     private static final char ONE = 'I';
     private static final char ZERO = 'O';
@@ -15,6 +15,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     private final static String INDENT = "    ";
     private final static double DUMMY_VARIABLE_PROBABILITY = 0.3;
     private final static double DUMMY_STATEMENT_PROBABILITY = 0.4;
+    private final static double MODIFY_EXPRESSION_PROBABILITY = 1;
     private final BufferedWriter writer;
     private final List<Map<String, String>> scopes = new ArrayList<>();
     private final int baseName;
@@ -30,7 +31,8 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
             "unsigned int", "unsigned char", "unsigned short", "unsigned long", "unsigned long long",
             "signed int", "signed char", "signed short", "signed long", "signed long long"
     );
-    private final static String[] NUMERIC_OPERATORS = {"+", "-", "*"};
+    private final static String[] DUMMY_NUMERIC_OPERATORS = {"+", "-", "*"};
+    private final static Set<String> NUMERIC_OPERATORS = Set.of("+", "-", "*", "/");
     private final static int MAX_RANDOM_EXPRESSION_LENGTH = 5;
 
     public ObfuscateVisitor(final BufferedWriter writer) {
@@ -112,7 +114,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitProgram(ProgramParser.ProgramContext ctx) {
+    public Context visitProgram(ProgramParser.ProgramContext ctx) {
         writeDefine(ZERO, 0);
         writeDefine(ONE, 1);
         final String zero = String.valueOf(ZERO);
@@ -132,7 +134,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         exitScope();
         numericNames.remove(zero);
         numericNames.remove(one);
-        return null;
+        return Context.DEFAULT;
     }
 
     private String getVariableType(final ProgramParser.SingleVariableDeclarationContext ctx) {
@@ -149,7 +151,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitSingleVariableDeclaration(ProgramParser.SingleVariableDeclarationContext ctx) {
+    public Context visitSingleVariableDeclaration(ProgramParser.SingleVariableDeclarationContext ctx) {
         visit(ctx.declarators());
         final String name = newName();
         addToScope(ctx.IDENT().getText(), name);
@@ -162,7 +164,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
             write(" = ");
             visit(expression);
         }
-        return null;
+        return Context.DEFAULT;
     }
 
     private String newName() {
@@ -185,7 +187,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitVariableDeclaration(ProgramParser.VariableDeclarationContext ctx) {
+    public Context visitVariableDeclaration(ProgramParser.VariableDeclarationContext ctx) {
         visit(ctx.type());
         write(' ');
         final int childCount = ctx.getChildCount();
@@ -195,17 +197,17 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
                 write(" ");
             }
         }
-        return null;
+        return Context.DEFAULT;
     }
 
     @Override
-    public Void visitTerminal(TerminalNode node) {
+    public Context visitTerminal(TerminalNode node) {
         write(node.getText());
-        return null;
+        return Context.DEFAULT;
     }
 
     @Override
-    public Void visitFunctionDeclaration(ProgramParser.FunctionDeclarationContext ctx) {
+    public Context visitFunctionDeclaration(ProgramParser.FunctionDeclarationContext ctx) {
         enterScope();
         visit(ctx.type());
         visit(ctx.declarators());
@@ -218,11 +220,11 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         newLine();
         exitScope();
         newLine();
-        return null;
+        return Context.DEFAULT;
     }
 
     @Override
-    public Void visitArguments(ProgramParser.ArgumentsContext ctx) {
+    public Context visitArguments(ProgramParser.ArgumentsContext ctx) {
         for (int i = 0; i < ctx.getChildCount(); ++i) {
             final ParseTree child = ctx.getChild(i);
             visit(child);
@@ -230,21 +232,22 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
                 write(' ');
             }
         }
-        return null;
+        return Context.DEFAULT;
     }
 
     @Override
-    public Void visitArgumentDeclaration(ProgramParser.ArgumentDeclarationContext ctx) {
+    public Context visitArgumentDeclaration(ProgramParser.ArgumentDeclarationContext ctx) {
         visit(ctx.type());
         write(' ');
         visit(ctx.singleVariableDeclaration());
-        return null;
+        return Context.DEFAULT;
     }
 
     @Override
-    public Void visitName(ProgramParser.NameContext ctx) {
-        write(lookup(ctx.getText()));
-        return null;
+    public Context visitName(ProgramParser.NameContext ctx) {
+        final String name = lookup(ctx.getText());
+        write(name);
+        return new Context(numericNames.contains(name));
     }
 
     private void insertDummyVariable() {
@@ -266,7 +269,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitScope(ProgramParser.ScopeContext ctx) {
+    public Context visitScope(ProgramParser.ScopeContext ctx) {
         write('{');
         increaseIndent();
         newLine();
@@ -280,11 +283,11 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         }
         decreaseIndent();
         withIndent('}');
-        return null;
+        return Context.DEFAULT;
     }
 
     @Override
-    public Void visitIf(ProgramParser.IfContext ctx) {
+    public Context visitIf(ProgramParser.IfContext ctx) {
         write("if (");
         visit(ctx.expression());
         write(") ");
@@ -293,20 +296,20 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
             write(" else ");
             visit(ctx.statement(1));
         }
-        return null;
+        return Context.DEFAULT;
     }
 
     @Override
-    public Void visitWhile(ProgramParser.WhileContext ctx) {
+    public Context visitWhile(ProgramParser.WhileContext ctx) {
         write("while (");
         visit(ctx.expression());
         write(") ");
         visit(ctx.statement());
-        return null;
+        return Context.DEFAULT;
     }
 
     @Override
-    public Void visitFor(ProgramParser.ForContext ctx) {
+    public Context visitFor(ProgramParser.ForContext ctx) {
         write("for (");
         visit(ctx.simpleStatement(0));
         write("; ");
@@ -315,25 +318,36 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         visit(ctx.simpleStatement(2));
         write(") ");
         visit(ctx.statement());
-        return null;
+        return Context.DEFAULT;
     }
 
     @Override
-    public Void visitReturn(ProgramParser.ReturnContext ctx) {
+    public Context visitReturn(ProgramParser.ReturnContext ctx) {
         write("return");
         if (ctx.getChildCount() > 1) {
             write(" ");
             visit(ctx.expression());
         }
-        return null;
+        return Context.DEFAULT;
     }
 
     @Override
-    public Void visitExpression(ProgramParser.ExpressionContext ctx) {
-        if (ctx.prefixOperator() != null ||
-                ctx.postfixOperator() != null ||
+    public Context visitLiteral(final ProgramParser.LiteralContext ctx) {
+        boolean isNumeric = (ctx.INT() != null);
+        super.visitLiteral(ctx);
+        return new Context(isNumeric);
+    }
+
+    @Override
+    public Context visitExpression(ProgramParser.ExpressionContext ctx) {
+        if (ctx.prefixOperator() != null) {
+            return super.visitExpression(ctx);
+        }
+        boolean modifyExpression = toss(MODIFY_EXPRESSION_PROBABILITY);
+        if (ctx.postfixOperator() != null ||
                 ctx.primary() != null ||
                 ctx.getChild(0).getText().equals("(")) {
+            // TODO
             return super.visitExpression(ctx);
         }
         if (ctx.getChild(1).getText().equals("(")) {  // function call
@@ -346,35 +360,60 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
                 }
             }
             write(")");
-            return null;
+            return Context.DEFAULT;
         }
         // infix operator
+        if (modifyExpression) {
+            write("((");
+        }
+        boolean isNumeric = visit(ctx.getChild(0)).isNumericExpression();
+        write(' ');
+        final ParseTree operator = ctx.getChild(1);
+        isNumeric = isNumeric && NUMERIC_OPERATORS.contains(operator.getText());
+        visit(operator);
+        write(' ');
+        isNumeric = visit(ctx.getChild(2)).isNumericExpression() && isNumeric;
+        if (modifyExpression) {
+            write(')');
+            if (isNumeric) {
+                modifyNumericExpression();
+            }
+            write(')');
+        }
+        return new Context(isNumeric);
+    }
+
+    private void modifyNumericExpression() {
+        write(' ');
+        if (random.nextBoolean()) {
+            write(random.nextBoolean() ? '*' : '/');
+            write(' ');
+            write(ONE);
+        } else {
+            write(random.nextBoolean() ? '+' : '-');
+            write(' ');
+            write(ZERO);
+        }
+    }
+
+    @Override
+    public Context visitAssignment(ProgramParser.AssignmentContext ctx) {
         visit(ctx.getChild(0));
         write(' ');
         visit(ctx.getChild(1));
         write(' ');
         visit(ctx.getChild(2));
-        return null;
+        return Context.DEFAULT;
     }
 
     @Override
-    public Void visitAssignment(ProgramParser.AssignmentContext ctx) {
-        visit(ctx.getChild(0));
-        write(' ');
-        visit(ctx.getChild(1));
-        write(' ');
-        visit(ctx.getChild(2));
-        return null;
-    }
-
-    @Override
-    public Void visitType(ProgramParser.TypeContext ctx) {
+    public Context visitType(ProgramParser.TypeContext ctx) {
         visit(ctx.getChild(0));
         for (int i = 1; i < ctx.getChildCount(); ++i) {
             write(' ');
             visit(ctx.getChild(i));
         }
-        return null;
+        return Context.DEFAULT;
     }
 
     private void insertDummyStatement() {
@@ -405,7 +444,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     }
 
     private String randomNumericOperator() {
-        return NUMERIC_OPERATORS[random.nextInt(NUMERIC_OPERATORS.length)];
+        return DUMMY_NUMERIC_OPERATORS[random.nextInt(DUMMY_NUMERIC_OPERATORS.length)];
     }
 
     private String randomExpression() {
@@ -419,5 +458,13 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
             }
         }
         return String.join(" ", expression);
+    }
+
+    public record Context(boolean isNumericExpression) {
+        public Context() {
+            this(false);
+        }
+
+        public final static Context DEFAULT = new Context();
     }
 }
