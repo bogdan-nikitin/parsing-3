@@ -372,7 +372,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
             visit(ctx.getChild(0));
             final Context context = visit(ctx.getChild(1));
             visit(ctx.getChild(2));
-            if (context.isNumericExpression() && !context.mayBeLValue()) {
+            if (modifyExpression && context.isNumericExpression() && !context.mayBeLValue()) {
                 modifyNumericExpression();
             }
             if (modifyExpression) {
