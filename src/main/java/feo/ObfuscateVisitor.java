@@ -247,7 +247,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
     public Context visitName(ProgramParser.NameContext ctx) {
         final String name = lookup(ctx.getText());
         write(name);
-        return new Context(numericNames.contains(name));
+        return new Context(numericNames.contains(name), true);
     }
 
     private void insertDummyVariable() {
@@ -342,7 +342,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
         } else {
             super.visitLiteral(ctx);
         }
-        return new Context(isNumeric);
+        return new Context(isNumeric, false);
     }
 
     @Override
@@ -354,13 +354,22 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
         if (ctx.primary() != null) {
             return visitPrimary(ctx.primary());
         }
+        boolean modifyExpression = toss(MODIFY_EXPRESSION_PROBABILITY);
         if (ctx.getChild(0).getText().equals("(")) {
+            if (modifyExpression) {
+                write('(');
+            }
             visit(ctx.getChild(0));
             final Context context = visit(ctx.getChild(1));
             visit(ctx.getChild(2));
+            if (context.isNumericExpression() && !context.mayBeLValue()) {
+                modifyNumericExpression();
+            }
+            if (modifyExpression) {
+                write(')');
+            }
             return context;
         }
-        boolean modifyExpression = toss(MODIFY_EXPRESSION_PROBABILITY);
         if (ctx.getChild(1) != null && ctx.getChild(1).getText().equals("(")) {  // function call
             visit(ctx.getChild(0));
             write('(');
@@ -397,7 +406,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
             }
             write(')');
         }
-        return new Context(isNumeric);
+        return new Context(isNumeric, false);
     }
 
     private void modifyNumericExpression() {
@@ -477,9 +486,9 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
         return String.join(" ", expression);
     }
 
-    public record Context(boolean isNumericExpression) {
+    public record Context(boolean isNumericExpression, boolean mayBeLValue) {
         public Context() {
-            this(false);
+            this(false, true);
         }
 
         public final static Context DEFAULT = new Context();
