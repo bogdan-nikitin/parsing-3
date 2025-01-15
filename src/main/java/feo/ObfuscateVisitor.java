@@ -15,7 +15,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
     private final static String INDENT = "    ";
     private final static double DUMMY_VARIABLE_PROBABILITY = 0.3;
     private final static double DUMMY_STATEMENT_PROBABILITY = 0.4;
-    private final static double MODIFY_EXPRESSION_PROBABILITY = 0.2;
+    private final static double MODIFY_EXPRESSION_PROBABILITY = 0.4;
     private final BufferedWriter writer;
     private final List<Map<String, String>> scopes = new ArrayList<>();
     private final int baseName;
@@ -497,10 +497,6 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
     }
 
     public record Context(boolean isNumericExpression, boolean mayBeLValue) {
-        public Context() {
-            this(false, true);
-        }
-
-        public final static Context DEFAULT = new Context();
+        public final static Context DEFAULT = new Context(false, true);
     }
 }
