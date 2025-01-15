@@ -333,8 +333,15 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
 
     @Override
     public Context visitLiteral(final ProgramParser.LiteralContext ctx) {
-        boolean isNumeric = (ctx.INT() != null);
-        super.visitLiteral(ctx);
+        final boolean isNumeric = (ctx.INT() != null);
+        if (toss(MODIFY_EXPRESSION_PROBABILITY) && isNumeric) {
+            write('(');
+            super.visitLiteral(ctx);
+            modifyNumericExpression();
+            write(')');
+        } else {
+            super.visitLiteral(ctx);
+        }
         return new Context(isNumeric);
     }
 
