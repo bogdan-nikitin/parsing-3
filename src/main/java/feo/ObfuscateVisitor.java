@@ -348,16 +348,20 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
     @Override
     public Context visitExpression(ProgramParser.ExpressionContext ctx) {
         if (ctx.prefixOperator() != null) {
-            return super.visitExpression(ctx);
+            visit(ctx.getChild(0));
+            return visit(ctx.getChild(1));
+        }
+        if (ctx.primary() != null) {
+            return visitPrimary(ctx.primary());
+        }
+        if (ctx.getChild(0).getText().equals("(")) {
+            visit(ctx.getChild(0));
+            final Context context = visit(ctx.getChild(1));
+            visit(ctx.getChild(2));
+            return context;
         }
         boolean modifyExpression = toss(MODIFY_EXPRESSION_PROBABILITY);
-        if (ctx.postfixOperator() != null ||
-                ctx.primary() != null ||
-                ctx.getChild(0).getText().equals("(")) {
-            // TODO
-            return super.visitExpression(ctx);
-        }
-        if (ctx.getChild(1).getText().equals("(")) {  // function call
+        if (ctx.getChild(1) != null && ctx.getChild(1).getText().equals("(")) {  // function call
             visit(ctx.getChild(0));
             write('(');
             for (int i = 2; !ctx.getChild(i).getText().equals(")"); ++i) {
@@ -373,13 +377,19 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
         if (modifyExpression) {
             write("((");
         }
-        boolean isNumeric = visit(ctx.getChild(0)).isNumericExpression();
-        write(' ');
-        final ParseTree operator = ctx.getChild(1);
-        isNumeric = isNumeric && NUMERIC_OPERATORS.contains(operator.getText());
-        visit(operator);
-        write(' ');
-        isNumeric = visit(ctx.getChild(2)).isNumericExpression() && isNumeric;
+        boolean isNumeric;
+        if (ctx.postfixOperator() != null) {
+            isNumeric = visit(ctx.getChild(0)).isNumericExpression();
+            visit(ctx.getChild(1));
+        } else {
+            isNumeric = visit(ctx.getChild(0)).isNumericExpression();
+            write(' ');
+            final ParseTree operator = ctx.getChild(1);
+            isNumeric = isNumeric && NUMERIC_OPERATORS.contains(operator.getText());
+            visit(operator);
+            write(' ');
+            isNumeric = visit(ctx.getChild(2)).isNumericExpression() && isNumeric;
+        }
         if (modifyExpression) {
             write(')');
             if (isNumeric) {
