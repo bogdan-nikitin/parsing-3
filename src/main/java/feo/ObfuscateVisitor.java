@@ -9,7 +9,9 @@ import java.util.*;
 
 public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     private static final int NAME_WIDTH = 8;
-    private static final char[] POSSIBLE_CHARS = {'O', 'I', '0', '1'};
+    private static final char ONE = 'I';
+    private static final char ZERO = 'O';
+    private static final char[] POSSIBLE_CHARS = {ZERO, ONE, '0', '1'};
     private final static String INDENT = "    ";
     private final static double DUMMY_VARIABLE_PROBABILITY = 0.3;
     private final static double DUMMY_STATEMENT_PROBABILITY = 0.4;
@@ -17,17 +19,16 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     private final List<Map<String, String>> scopes = new ArrayList<>();
     private final int baseName;
     private final Set<String> usedNames = new HashSet<>();
-    private final Set<String> numericVariables = new HashSet<>();
+    private final Set<String> numericNames = new HashSet<>();
     private final Set<String> dummyVariables = new HashSet<>();
     private final Random random = new Random();
     private IOException ioException = null;
     private int indent = 0;
     private final static List<String> NUMERIC_TYPES = List.of(
             "int", "double", "float", "long", "short",
-            "long long", "long int", "long double", "unsigned int",
-            "unsigned char", "unsigned short", "unsigned long",
-            "unsigned long long", "signed int", "signed char",
-            "signed short", "signed long", "signed long long"
+            "long long", "long int", "long double",
+            "unsigned int", "unsigned char", "unsigned short", "unsigned long", "unsigned long long",
+            "signed int", "signed char", "signed short", "signed long", "signed long long"
     );
     private final static String[] NUMERIC_OPERATORS = {"+", "-", "*"};
     private final static int MAX_RANDOM_EXPRESSION_LENGTH = 5;
@@ -100,13 +101,25 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     private void exitScope() {
         final Collection<String> scopeVariables = scopes.getLast().values();
         usedNames.removeAll(scopeVariables);
-        numericVariables.removeAll(scopeVariables);
+        numericNames.removeAll(scopeVariables);
         dummyVariables.removeAll(scopeVariables);
         scopes.removeLast();
     }
 
+    private void writeDefine(final Object name, final Object value) {
+        write("#define %s %s".formatted(name, value));
+        newLine();
+    }
+
     @Override
     public Void visitProgram(ProgramParser.ProgramContext ctx) {
+        writeDefine(ZERO, 0);
+        writeDefine(ONE, 1);
+        final String zero = String.valueOf(ZERO);
+        final String one = String.valueOf(ONE);
+        numericNames.add(zero);
+        numericNames.add(one);
+        newLine();
         enterScope();
         for (int i = 0; i < ctx.getChildCount(); ++i) {
             final ParseTree child = ctx.getChild(i);
@@ -117,6 +130,8 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
             }
         }
         exitScope();
+        numericNames.remove(zero);
+        numericNames.remove(one);
         return null;
     }
 
@@ -129,13 +144,17 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         return that.getText() + ctx.declarators();
     }
 
+    private void addToScope(final String name, final String newName) {
+        scopes.getLast().put(name, newName);
+    }
+
     @Override
     public Void visitSingleVariableDeclaration(ProgramParser.SingleVariableDeclarationContext ctx) {
         visit(ctx.declarators());
         final String name = newName();
-        scopes.getLast().put(ctx.IDENT().getText(), name);
+        addToScope(ctx.IDENT().getText(), name);
         if (NUMERIC_TYPES.contains(getVariableType(ctx))) {
-            numericVariables.add(name);
+            numericNames.add(name);
         }
         write(name);
         final ParseTree expression = ctx.expression();
@@ -234,8 +253,8 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         }
         final String name = newName();
         dummyVariables.add(name);
-        numericVariables.add(name);
-        scopes.getLast().put(name, name);
+        numericNames.add(name);
+        addToScope(name, name);
         indent();
         write(NUMERIC_TYPES.get(random.nextInt(NUMERIC_TYPES.size())));
         write(" ");
@@ -317,7 +336,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
                 ctx.getChild(0).getText().equals("(")) {
             return super.visitExpression(ctx);
         }
-        if (ctx.getChild(1).getText().equals("(")) {
+        if (ctx.getChild(1).getText().equals("(")) {  // function call
             visit(ctx.getChild(0));
             write('(');
             for (int i = 2; !ctx.getChild(i).getText().equals(")"); ++i) {
@@ -329,6 +348,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
             write(")");
             return null;
         }
+        // infix operator
         visit(ctx.getChild(0));
         write(' ');
         visit(ctx.getChild(1));
@@ -393,7 +413,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         final String[] expression = new String[2 * operands - 1];
         for (int i = 0; i < expression.length; ++i) {
             if (i % 2 == 0) {
-                expression[i] = randomElement(numericVariables);
+                expression[i] = randomElement(numericNames);
             } else {
                 expression[i] = randomNumericOperator();
             }
