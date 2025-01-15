@@ -32,7 +32,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
             "signed int", "signed char", "signed short", "signed long", "signed long long"
     );
     private final static String[] DUMMY_NUMERIC_OPERATORS = {"+", "-", "*"};
-    private final static Set<String> NUMERIC_OPERATORS = Set.of("+", "-", "*", "/");
+    private final static Set<String> NUMERIC_OPERATORS = Set.of("+", "-", "*", "/", "<", ">", "==", "<=", ">=");
     private final static int MAX_RANDOM_EXPRESSION_LENGTH = 5;
 
     public ObfuscateVisitor(final BufferedWriter writer) {
@@ -270,6 +270,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
 
     @Override
     public Context visitScope(ProgramParser.ScopeContext ctx) {
+        enterScope();
         write('{');
         increaseIndent();
         newLine();
@@ -283,6 +284,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
         }
         decreaseIndent();
         withIndent('}');
+        exitScope();
         return Context.DEFAULT;
     }
 
