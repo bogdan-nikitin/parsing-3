@@ -10,7 +10,7 @@ import java.util.*;
 public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     private static final int NAME_WIDTH = 8;
     private static final char[] POSSIBLE_CHARS = {'O', 'I', '0', '1'};
-    private final static String IDENT = "    ";
+    private final static String INDENT = "    ";
     private final static double DUMMY_VARIABLE_PROBABILITY = 0.3;
     private final static double DUMMY_STATEMENT_PROBABILITY = 0.4;
     private final BufferedWriter writer;
@@ -21,7 +21,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     private final Set<String> dummyVariables = new HashSet<>();
     private final Random random = new Random();
     private IOException ioException = null;
-    private int ident = 0;
+    private int indent = 0;
     private final static List<String> NUMERIC_TYPES = List.of(
             "int", "double", "float", "long", "short",
             "long long", "long int", "long double", "unsigned int",
@@ -53,28 +53,28 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         }
     }
 
-    private void withIdent(final String string) {
-        ident();
+    private void withIndent(final String string) {
+        indent();
         write(string);
     }
 
-    private void withIdent(final char c) {
-        ident();
+    private void withIndent(final char c) {
+        indent();
         write(c);
     }
 
-    private void ident() {
-        for (int i = 0; i < ident; ++i) {
-            write(IDENT);
+    private void indent() {
+        for (int i = 0; i < indent; ++i) {
+            write(INDENT);
         }
     }
 
-    private void increaseIdent() {
-        ++ident;
+    private void increaseIndent() {
+        ++indent;
     }
 
-    private void decreaseIdent() {
-        --ident;
+    private void decreaseIndent() {
+        --indent;
     }
 
     private void write(final String string) {
@@ -236,7 +236,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         dummyVariables.add(name);
         numericVariables.add(name);
         scopes.getLast().put(name, name);
-        ident();
+        indent();
         write(NUMERIC_TYPES.get(random.nextInt(NUMERIC_TYPES.size())));
         write(" ");
         write(name);
@@ -249,18 +249,18 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     @Override
     public Void visitScope(ProgramParser.ScopeContext ctx) {
         write('{');
-        increaseIdent();
+        increaseIndent();
         newLine();
         for (int i = 1; i < ctx.getChildCount() - 1; ++i) {
             insertDummyVariable();
             insertDummyStatement();
-            ident();
+            indent();
             final ParseTree child = ctx.getChild(i);
             visit(child);
             newLine();
         }
-        decreaseIdent();
-        withIdent('}');
+        decreaseIndent();
+        withIndent('}');
         return null;
     }
 
@@ -365,7 +365,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
         if (dest == null) {
             return;
         }
-        ident();
+        indent();
         write(dest);
         write(" ");
         if (random.nextBoolean()) {
