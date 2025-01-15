@@ -138,10 +138,10 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<Void> {
     private String getVariableType(final ProgramParser.SingleVariableDeclarationContext ctx) {
         final ParseTree parent = ctx.parent;
         if (parent instanceof ProgramParser.ArgumentDeclarationContext that) {
-            return that.getText() + that.declarators();
+            return that.type().getText() + that.declarators().getText();
         }
         final ProgramParser.VariableDeclarationContext that = ((ProgramParser.VariableDeclarationContext) ctx.parent);
-        return that.getText() + ctx.declarators();
+        return that.type().getText() + ctx.declarators().getText();
     }
 
     private void addToScope(final String name, final String newName) {
