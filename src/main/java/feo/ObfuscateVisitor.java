@@ -15,7 +15,7 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
     private final static String INDENT = "    ";
     private final static double DUMMY_VARIABLE_PROBABILITY = 0.3;
     private final static double DUMMY_STATEMENT_PROBABILITY = 0.4;
-    private final static double MODIFY_EXPRESSION_PROBABILITY = 1;
+    private final static double MODIFY_EXPRESSION_PROBABILITY = 0.2;
     private final BufferedWriter writer;
     private final List<Map<String, String>> scopes = new ArrayList<>();
     private final int baseName;
@@ -293,10 +293,14 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
         write("if (");
         visit(ctx.expression());
         write(") ");
+        enterScope();
         visit(ctx.statement(0));
+        exitScope();
         if (ctx.statement(1) != null) {
             write(" else ");
+            enterScope();
             visit(ctx.statement(1));
+            exitScope();
         }
         return Context.DEFAULT;
     }
@@ -306,7 +310,9 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
         write("while (");
         visit(ctx.expression());
         write(") ");
+        enterScope();
         visit(ctx.statement());
+        exitScope();
         return Context.DEFAULT;
     }
 
@@ -319,7 +325,9 @@ public class ObfuscateVisitor extends ProgramBaseVisitor<ObfuscateVisitor.Contex
         write("; ");
         visit(ctx.simpleStatement(2));
         write(") ");
+        enterScope();
         visit(ctx.statement());
+        exitScope();
         return Context.DEFAULT;
     }
 
